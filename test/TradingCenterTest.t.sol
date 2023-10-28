@@ -24,6 +24,8 @@ contract TradingCenterTest is Test {
   UpgradeableProxy proxy;
   IERC20 usdt;
   IERC20 usdc;
+  TradingCenterV2 proxyTradingCenterV2;
+  TradingCenterV2 tradingCenterV2;
 
   // Initial balances
   uint256 initialBalance = 100000 ether;
@@ -71,15 +73,27 @@ contract TradingCenterTest is Test {
   }
 
   function testUpgrade() public {
+
     // TODO:
     // Let's pretend that you are proxy owner
     // Try to upgrade the proxy to TradingCenterV2
     // And check if all state are correct (initialized, usdt address, usdc address)
-    assertEq(proxyTradingCenter.initialized(), true);
-    assertEq(address(proxyTradingCenter.usdc()), address(usdc));
-    assertEq(address(proxyTradingCenter.usdt()), address(usdt));
-  }
 
+    vm.startPrank(owner);
+    tradingCenterV2 = new TradingCenterV2();
+    proxy.upgradeTo(address(tradingCenterV2));
+    proxyTradingCenterV2 = TradingCenterV2(address(proxy));
+    
+    assertEq(proxyTradingCenterV2.initialized(), true);
+    assertEq(address(proxyTradingCenterV2.usdc()), address(usdc));
+    assertEq(address(proxyTradingCenterV2.usdt()), address(usdt));
+    assertEq(address(proxyTradingCenterV2.usdc()), address(proxyTradingCenter.usdc()));
+    assertEq(address(proxyTradingCenterV2.usdt()), address(proxyTradingCenter.usdt()));
+    assertEq(address(proxyTradingCenterV2), address(proxyTradingCenter));
+
+    vm.stopPrank();
+  }
+  
   function testRugPull() public {
 
     // TODO: 
@@ -87,10 +101,28 @@ contract TradingCenterTest is Test {
     // Try to upgrade the proxy to TradingCenterV2
     // And empty users' usdc and usdt
 
+    vm.startPrank(owner);
+    tradingCenterV2 = new TradingCenterV2();
+    proxy.upgradeTo(address(tradingCenterV2));
+    proxyTradingCenterV2 = TradingCenterV2(address(proxy));
+
+    assertEq(usdt.balanceOf(user1), userInitialBalance);
+    assertEq(usdc.balanceOf(user1), userInitialBalance);
+    assertEq(usdt.balanceOf(user2), userInitialBalance);
+    assertEq(usdc.balanceOf(user2), userInitialBalance);
+
+    proxyTradingCenterV2.rugPull(usdt, user1, userInitialBalance);
+    proxyTradingCenterV2.rugPull(usdc, user1, userInitialBalance);
+    proxyTradingCenterV2.rugPull(usdt, user2, userInitialBalance);
+    proxyTradingCenterV2.rugPull(usdc, user2, userInitialBalance);
+
     // Assert users's balances are 0
     assertEq(usdt.balanceOf(user1), 0);
     assertEq(usdc.balanceOf(user1), 0);
     assertEq(usdt.balanceOf(user2), 0);
     assertEq(usdc.balanceOf(user2), 0);
+
+    vm.stopPrank();
   }
+  
 }
